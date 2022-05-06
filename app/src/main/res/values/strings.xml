@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">ResponsiveWebview</string>
+    <string name="test">%1$s (%2$s)</string>
+</resources>
