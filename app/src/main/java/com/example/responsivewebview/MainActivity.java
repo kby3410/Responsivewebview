@@ -49,6 +49,11 @@ import android.widget.Toast;
 
 import com.example.mylibrary.ItempApi;
 
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
@@ -85,12 +90,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private DBRecyclerAdapter DBadapter;
     private Handler mHandler;
     private String REBOOT_ACTION = "ads.android.setreboot.action";
-    private String filename = "test.apk";
     private ProgressDialog pDialog;
     private File targetFile;
-    private static final String IP_ADDRESS = "https://www.krizer.com/responsivewebview1.1.apk";
+    private static final String IP_ADDRESS = "https://www.krizer.co.kr/krizer_edit/responsivewebview1.1.apk";
     private Intent AppListIntent;
     private String Packname = "com.example.responsivewebview";
+    private String UpdateUrl = "http://krizer.co.kr/krizer_edit/krizer_app_version.html";
+    private String respon_Url;
+    private String TAG = "MainActivity" ;
+    private String Server_Version;
+    private String App_Version;
+    private String filename = "update.apk";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -98,8 +109,28 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             setContentView(R.layout.activity_main);
             Sensor_button = (Button)findViewById(R.id.sensor_button);
             Sensor_button.setOnClickListener(this);
+            respon_Url = "http://krizer.co.kr/krizer_edit/respon_sensor.apk";
         }else {
             setContentView(R.layout.activity_main_auto);
+            respon_Url = "http://krizer.co.kr/krizer_edit/respon_basic.apk";
+        }
+
+        Log.d("test", respon_Url);
+        AppListIntent = new Intent(Intent.ACTION_MAIN, null);
+        AppListIntent.addCategory(Intent.CATEGORY_LAUNCHER);
+        List<ResolveInfo> pack = getPackageManager().queryIntentActivities(AppListIntent, 0);
+        for (int i = 0; i < pack.size(); i++) {
+            PackageInfo packageInfo = null;
+            try {
+                packageInfo = getPackageManager().getPackageInfo(pack.get(i).activityInfo.applicationInfo.packageName, 0);
+            } catch (PackageManager.NameNotFoundException e) {
+                e.printStackTrace();
+            }
+
+            if ("com.example.responsivewebview.auto".equals(pack.get(i).activityInfo.applicationInfo.packageName)||"com.example.responsivewebview.sensor".equals(pack.get(i).activityInfo.applicationInfo.packageName)) {
+                App_Version = packageInfo.versionName;
+                Log.d("test", App_Version);
+            }
         }
 
         Log.d("test" , Build.MODEL);
@@ -116,7 +147,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         Settings.System.putInt(getContentResolver(), "screen_brightness", 255);
 
-        targetFile = new File(Environment.getExternalStorageDirectory().getAbsolutePath()+"/TEST/" + filename);
+        targetFile = new File(Environment.getExternalStorageDirectory().getAbsolutePath()+ "/" + filename);
         Internet = (ImageView) findViewById(R.id.lancheck);
         Setting_button = (Button)findViewById(R.id.setting_button);
         Setting_button.setOnClickListener(this);
@@ -140,7 +171,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             @Override
             public void run() {      //wifi 연결시 딜레이 때문에
                 DBhandler();
-                CheckVer();
+                JsoupAsyncTask jsoupAsyncTask = new JsoupAsyncTask();
+                jsoupAsyncTask.execute(UpdateUrl);
+
             }
         }, 6000);
     }
@@ -277,7 +310,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 DBhandler();
                 break;
             case R.id.lite_button:
-                doRootStuff();
+                lite_doRootStuff();
                 break;
             case R.id.sensor_button:
                 Intent sensor_Intent = getPackageManager().getLaunchIntentForPackage("com.example.uartsensor");
@@ -285,6 +318,37 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
 
 
+        }
+    }
+
+    public void lite_doRootStuff(){
+        try {
+            String line;
+            Process process = Runtime.getRuntime().exec("su");
+            OutputStream stdin = process.getOutputStream();
+            InputStream stderr = process.getErrorStream();
+            InputStream stdout = process.getInputStream();
+            stdin.write(("busybox mount -o remount,rw -t ext4 /dev/block/platform/ff0f0000.dwmmc/by-name/system /system\n").getBytes()); // "Permissive"
+            stdin.write("am start com.ayst.adplayer/.home.HomeActivity\n".getBytes());
+            //stdin.write(("cp /storage/emulated/0/TEST/test.apk /system/app/ResponsiveWebview/ResponsiveWebview.apk\n").getBytes()); // E/[Error]: cp: /system/media/bootanimation_test.zip: Read-only file system
+            //stdin.write(("chmod 644 /system/app/ResponsiveWebview/ResponsiveWebview.apk\n").getBytes());
+            stdin.write("exit\n".getBytes());
+            stdin.flush();
+            stdin.close();
+            BufferedReader br = new BufferedReader(new InputStreamReader(stdout));
+            while ((line = br.readLine()) != null) {
+                Log.d("[Output]", line);
+            }
+            br.close();
+            br = new BufferedReader(new InputStreamReader(stderr));
+            while ((line = br.readLine()) != null) {
+                Log.e("[Error]", line);
+            }
+            br.close();
+            process.waitFor();
+            process.destroy();
+        } catch (Exception ex) {
+            ex.printStackTrace();
         }
     }
 
@@ -296,9 +360,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             InputStream stderr = process.getErrorStream();
             InputStream stdout = process.getInputStream();
             stdin.write(("busybox mount -o remount,rw -t ext4 /dev/block/platform/ff0f0000.dwmmc/by-name/system /system\n").getBytes()); // "Permissive"
-            stdin.write("am start com.ayst.adplayer/.home.HomeActivity\n".getBytes());
-            //stdin.write(("cp /storage/emulated/0/TEST/test.apk /system/app/ResponsiveWebview/ResponsiveWebview.apk\n").getBytes()); // E/[Error]: cp: /system/media/bootanimation_test.zip: Read-only file system
-            //stdin.write(("chmod 644 /system/app/ResponsiveWebview/ResponsiveWebview.apk\n").getBytes());
+            //stdin.write("am start com.ayst.adplayer/.home.HomeActivity\n".getBytes());
+            stdin.write(("cp /storage/emulated/0/update.apk /system/app/ResponsiveWebview/ResponsiveWebview.apk\n").getBytes()); // E/[Error]: cp: /system/media/bootanimation_test.zip: Read-only file system
+            stdin.write(("chmod 644 /system/app/ResponsiveWebview/ResponsiveWebview.apk\n").getBytes());
             stdin.write("exit\n".getBytes());
             stdin.flush();
             stdin.close();
@@ -394,52 +458,24 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 try {
                     URL url;
                     HttpURLConnection conn = null;
-                    url = new URL(IP_ADDRESS); // 서버에 접속한다.
+                    url = new URL(respon_Url); // 서버에 접속한다.
                     conn = (HttpURLConnection) url.openConnection();
-                    AppListIntent = new Intent(Intent.ACTION_MAIN, null);
-                    AppListIntent.addCategory(Intent.CATEGORY_LAUNCHER);
-                    List<ResolveInfo> pack = getPackageManager().queryIntentActivities(AppListIntent, 0);
-                    Runtime.getRuntime().exec("su");
 
                     if (200 != conn.getResponseCode()) {
                         System.out.println("con test" + conn.getResponseCode());
                     } else {
                     System.out.println("con test22 = " + conn.getResponseCode());
                     //System.out.println("contest" + conn.getResponseCode());
-                    for (int i = 0; i < pack.size(); i++) {
-                        PackageInfo packageInfo = null;
-                        packageInfo = getPackageManager().getPackageInfo(pack.get(i).activityInfo.applicationInfo.packageName, 0);
-
-                        if (Packname.equals(pack.get(i).activityInfo.applicationInfo.packageName)) {
-                            System.out.println("테스트" + packageInfo.versionName.substring(0, 3));
-                            System.out.println("됐당1" + conn.getURL().getFile().substring(18, 21));
-                            if (conn.getURL().getFile().substring(18, 21).equals(packageInfo.versionName.substring(0, 3))) {
-                                System.out.println("됐당" + packageInfo.versionName);
-                                System.out.println("됐당" + conn.getURL().getFile());
-                            } else {
-                                ConnectivityManager cm = (ConnectivityManager) getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
-                                NetworkInfo ninfo = cm.getActiveNetworkInfo();
-                                if (ninfo == null) {
-                                    System.out.println("인터넷연결 x");
-                                } else {
-                                    Handler mHandler = new Handler(Looper.getMainLooper());
-                                    mHandler.postDelayed(new Runnable() {
-                                        @Override
-                                        public void run() {
-                                            // 사용하고자 하는 코드
-                                            DownloadFileAsync downloadFileAsync = new DownloadFileAsync();
-                                            downloadFileAsync.execute();
-                                        }
-                                    }, 0);
-                                }
+                        Handler mHandler = new Handler(Looper.getMainLooper());
+                        mHandler.postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                // 사용하고자 하는 코드
+                                DownloadFileAsync downloadFileAsync = new DownloadFileAsync();
+                                downloadFileAsync.execute();
                             }
-
-                        }
+                            }, 0);
                     }
-                }
-
-                } catch (PackageManager.NameNotFoundException nameNotFoundException) {
-                    nameNotFoundException.printStackTrace();
                 } catch (MalformedURLException malformedURLException) {
                     malformedURLException.printStackTrace();
                 } catch (IOException ioException) {
@@ -474,7 +510,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             BufferedOutputStream bout = null;
             try {
                 //Process p = Runtime.getRuntime().exec("su");
-                url = new URL(IP_ADDRESS); // 서버에 접속한다.
+                url = new URL(respon_Url); // 서버에 접속한다.
                 conn = (HttpURLConnection)url.openConnection();
                 // DataOutputStream os = new DataOutputStream(p.getOutputStream());
 
@@ -537,4 +573,60 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             //doInBackground() 메소드로부터 리턴된 결과 "Complete Load" string Toast로 화면에 표시
         }
     }
+
+    private class JsoupAsyncTask extends AsyncTask<String, Void, Void> {
+        @Override protected void onPreExecute() {
+            super.onPreExecute();
+        }
+        @Override protected Void doInBackground(String... params) {
+            Log.i(TAG, Arrays.toString(params));
+            try {
+                // 파라미터로 넘어온 값을 이용해서 url 와 회차를 설정한다.
+                String callUrl = params[0];
+                Log.e(TAG, callUrl);
+                Document doc = Jsoup.connect(callUrl).get();
+                // 위의 html tag에서 결과숫자를 싸고 있는 span tag 을 class명을 이용함.
+                Elements links;
+                if (BuildConfig.ISSENSOR){
+                    links = doc.select(".Respon_sensor_version");
+                }else {
+                    links = doc.select(".Respon_basic_version");
+                }
+                Log.e(TAG, "links=" + links.size());
+
+                for(Element el : links) {
+                    Log.e(TAG, el.text()) ;
+                    Server_Version = el.text() ;
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            } return null;
+        }
+        @Override protected void onPostExecute(Void result) {
+            if(App_Version.equals(Server_Version)) {
+                Log.d(TAG,"Server version = "+Server_Version);
+                Toast.makeText(MainActivity.this, "이미 최신 버전입니다.", Toast.LENGTH_SHORT).show();
+            }else{
+                Log.d(TAG,"else Server version = "+Server_Version);
+                if(Internet()){
+                    CheckVer();
+                }else {
+                    Toast.makeText(MainActivity.this, "업데이트가 존재합니다. 네트워크를 확인해주세요.", Toast.LENGTH_SHORT).show();
+                }
+            }
+        }
+    }
+
+    boolean Internet(){
+        ConnectivityManager cm = (ConnectivityManager) MainActivity.this.getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo ninfo = cm.getActiveNetworkInfo();
+        if(ninfo == null){
+            Log.d(TAG,"네트워크가 연결되어있지않아요.");
+            return false;
+        }else{
+            Log.d(TAG,"네트워크가 연결되어있어요.");
+            return true;
+        }
+    }
+
 }
