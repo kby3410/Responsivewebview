@@ -19,15 +19,15 @@ public class MyReceiver extends BroadcastReceiver {
 	public void onReceive(Context context, Intent intent) {
 		String action = intent.getAction();
 
-		if (BuildConfig.ISSENSOR){
+		/*if (BuildConfig.ISSENSOR){
 
-		}else {
+		}else {*/
 			if(action.equals("android.intent.action.BOOT_COMPLETED")) {
-				Intent it = new Intent(context, MainActivity.class);
-				it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-				context.startActivity(it);
+			//	Intent it = new Intent(context, MainActivity.class);
+			//	it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+			//	context.startActivity(it);
 			}
-		}
+		//}
 
 	}
 

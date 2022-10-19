@@ -284,7 +284,7 @@
                 android:orientation="vertical">
 
                 <androidx.appcompat.widget.AppCompatButton
-                    android:id="@+id/setting_button"
+                    android:id="@id/setting_button"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:background="@drawable/setting_button"
@@ -331,18 +331,6 @@
             </LinearLayout>
 
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="match_parent"
-                android:orientation="vertical">
-                <androidx.appcompat.widget.AppCompatButton
-                    android:id="@+id/sensor_button"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:background="@drawable/lite_button"
-                    />
-            </LinearLayout>
         </LinearLayout>
 
     </LinearLayout>

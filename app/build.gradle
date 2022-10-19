@@ -5,7 +5,7 @@ plugins {
 android {
     signingConfigs {
         debug {
-            storeFile file('C:\\Users\\user\\adb\\platform.jks')
+            storeFile file('C:\\Users\\user\\platform.jks')
             storePassword 'android'
             keyAlias 'androiddebugkey'
             keyPassword 'android'
@@ -30,6 +30,13 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
+        applicationVariants.all { variant ->
+            variant.outputs.all {
+                def name = parent.project.getName()
+                def versionName = variant.versionName
+                outputFileName = "${name}_${versionName}.apk"
+            }
+        }
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -37,7 +44,7 @@ android {
     }
 
 
-    flavorDimensions "version"
+    /*flavorDimensions "version"
     productFlavors {
         sensor {
             dimension "version"
@@ -51,7 +58,7 @@ android {
             manifestPlaceholders = [ appLabel: "모두터치" ]
             buildConfigField 'boolean', 'ISSENSOR', "false"
         }
-    }
+    }*/
 }
 
 dependencies {

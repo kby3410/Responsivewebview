@@ -58,7 +58,9 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -79,8 +81,9 @@ import static android.provider.Settings.ACTION_SETTINGS;
 public class MainActivity extends AppCompatActivity implements View.OnClickListener{
 
     private ImageView Internet;
-    private volatile boolean running = true;
-    private Button Setting_button,Rtc_button,Save_button, Lite_button, Sensor_button;
+    private volatile boolean Network_running = true;
+    private volatile boolean Gpio_running = true;
+    private Button Setting_button,Rtc_button,Save_button, Lite_button;
     private EditText Name,Url;
     private final ArrayList<DBData> DB_list = new ArrayList<>();
     private final ArrayList<String> Http_list = new ArrayList<>();
@@ -95,8 +98,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private static final String IP_ADDRESS = "https://www.krizer.co.kr/krizer_edit/responsivewebview1.1.apk";
     private Intent AppListIntent;
     private String Packname = "com.example.responsivewebview";
-    private String UpdateUrl = "http://krizer.co.kr/krizer_edit/krizer_app_version.html";
-    private String respon_Url;
+    private String UpdateUrl = "https://krizer.co.kr/krizer_edit/krizer_app_version.html";
+    private String respon_Url = "https://krizer.co.kr/krizer_edit/respon.apk";
     private String TAG = "MainActivity" ;
     private String Server_Version;
     private String App_Version;
@@ -105,7 +108,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        if (BuildConfig.ISSENSOR){
+        /*if (BuildConfig.ISSENSOR){
             setContentView(R.layout.activity_main);
             Sensor_button = (Button)findViewById(R.id.sensor_button);
             Sensor_button.setOnClickListener(this);
@@ -113,9 +116,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }else {
             setContentView(R.layout.activity_main_auto);
             respon_Url = "http://krizer.co.kr/krizer_edit/respon_basic.apk";
-        }
-
-        Log.d("test", respon_Url);
+        }*/
+        setContentView(R.layout.activity_main);
         AppListIntent = new Intent(Intent.ACTION_MAIN, null);
         AppListIntent.addCategory(Intent.CATEGORY_LAUNCHER);
         List<ResolveInfo> pack = getPackageManager().queryIntentActivities(AppListIntent, 0);
@@ -127,7 +129,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 e.printStackTrace();
             }
 
-            if ("com.example.responsivewebview.auto".equals(pack.get(i).activityInfo.applicationInfo.packageName)||"com.example.responsivewebview.sensor".equals(pack.get(i).activityInfo.applicationInfo.packageName)) {
+            if ("com.example.responsivewebview".equals(pack.get(i).activityInfo.applicationInfo.packageName)) {
                 App_Version = packageInfo.versionName;
                 Log.d("test", App_Version);
             }
@@ -165,12 +167,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         init();
         ItempApi.controlSystemBarShow(this);
         checkPermission();
+        DBhandler();
 
         Handler mHandler = new Handler(Looper.getMainLooper());
         mHandler.postDelayed(new Runnable() {
             @Override
             public void run() {      //wifi 연결시 딜레이 때문에
-                DBhandler();
+
                 JsoupAsyncTask jsoupAsyncTask = new JsoupAsyncTask();
                 jsoupAsyncTask.execute(UpdateUrl);
 
@@ -187,6 +190,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     protected void onStop() {
         super.onStop();
+        Log.d("main","onstop");
         terminate();
     }
 
@@ -207,18 +211,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     protected void onRestart(){               //메모 수정,삭제했을 경우 반영하기위한 리스타트
         super.onRestart();
-        running = true;
+        Log.d("main","restart");
+        Network_running = true;
         Thread();
         DBhandler();
         ItempApi.controlSystemBarShow(this);
         Settings.System.putInt(getContentResolver(), "screen_brightness", 255);
     }
 
-    void Thread(){
+    void Thread(){                           //네트워크 체크 스레드
         Thread thread = new Thread() {
             @Override
             public void run() {
-                while (running) {
+                while (Network_running) {
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
@@ -235,6 +240,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }; // new Thread() { };
         thread.start();
     }
+
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {      //런처앱 뒤로가기 비활성화
@@ -259,7 +265,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     public void terminate() {
-        running = false;
+        Network_running = false;
     }
 
     void InternetCheck(){
@@ -312,11 +318,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case R.id.lite_button:
                 lite_doRootStuff();
                 break;
-            case R.id.sensor_button:
+            /*case R.id.sensor_button:
                 Intent sensor_Intent = getPackageManager().getLaunchIntentForPackage("com.example.uartsensor");
                 startActivity(sensor_Intent);
                 break;
-
+            */
 
         }
     }
@@ -361,7 +367,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             InputStream stdout = process.getInputStream();
             stdin.write(("busybox mount -o remount,rw -t ext4 /dev/block/platform/ff0f0000.dwmmc/by-name/system /system\n").getBytes()); // "Permissive"
             //stdin.write("am start com.ayst.adplayer/.home.HomeActivity\n".getBytes());
-            stdin.write(("cp /storage/emulated/0/update.apk /system/app/ResponsiveWebview/ResponsiveWebview.apk\n").getBytes()); // E/[Error]: cp: /system/media/bootanimation_test.zip: Read-only file system
+            stdin.write(("cp /sdcard/update.apk /system/app/ResponsiveWebview/ResponsiveWebview.apk\n").getBytes()); // E/[Error]: cp: /system/media/bootanimation_test.zip: Read-only file system
             stdin.write(("chmod 644 /system/app/ResponsiveWebview/ResponsiveWebview.apk\n").getBytes());
             stdin.write("exit\n".getBytes());
             stdin.flush();
@@ -587,11 +593,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 Document doc = Jsoup.connect(callUrl).get();
                 // 위의 html tag에서 결과숫자를 싸고 있는 span tag 을 class명을 이용함.
                 Elements links;
-                if (BuildConfig.ISSENSOR){
+                /*if (BuildConfig.ISSENSOR){
                     links = doc.select(".Respon_sensor_version");
                 }else {
                     links = doc.select(".Respon_basic_version");
-                }
+                }*/
+                links = doc.select(".Respon_version");
                 Log.e(TAG, "links=" + links.size());
 
                 for(Element el : links) {
